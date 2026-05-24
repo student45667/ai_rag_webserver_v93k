@@ -1,0 +1,354 @@
+// =============================================================================
+// FILE:        vectors/SENSOR_IC_vectors.vec
+// DEVICE:      SENSOR_IC — Dummy SPI Accelerometer
+// TESTER:      Advantest V93000 PS1600 / SmarTest 7
+// DESCRIPTION: ASCII Vector File — pattern definitions for all test methods
+//              Format: device_cycle_name, pin state characters, edge delays
+//
+// State character reference:
+//   F10       = drive HIGH (force 1, tristate off)
+//   F00       = drive LOW  (force 0, tristate off)
+//   FNZ       = tristate   (force nothing, high-Z)
+//   H         = compare HIGH (expect > VOH)
+//   L         = compare LOW  (expect < VOL)
+//   X         = mask       (don't compare — don't care)
+//   Z         = compare tristate (expect Hi-Z)
+//
+// Edge notation:  STATE:time   e.g. F10:0  means drive HIGH at t=0ns
+// =============================================================================
+
+
+// =============================================================================
+// PATTERN: iddq_quiescent
+// Purpose: Drive all pins to known quiescent state for IDDQ measurement
+// Timing:  cont_dc (10us cycle, quasi-static)
+// Notes:   All inputs driven to stable logic values
+//          SPI CS_N high (deselected), RESET_N high (active)
+//          All outputs masked — not comparing during IDDQ
+// =============================================================================
+PATTERN iddq_quiescent {
+    device_cycle = cont_dc;
+
+    // Pin:      SPI_CS_N  SPI_CLK  SPI_MOSI  SPI_MISO  RESET_N  INT1  INT2  DATA_RDY
+    // Cycle 1: all inputs to stable known state, outputs masked
+    VECTOR {
+        SPI_CS_N  : F10:0;       // CS high = deselected
+        SPI_CLK   : F00:0;       // clock idle low (CPOL=0)
+        SPI_MOSI  : F00:0;       // MOSI low (idle)
+        RESET_N   : F10:0;       // RESET_N high = device active
+        MODE[0]   : F00:0;       // mode 0 = measurement mode
+        MODE[1]   : F00:0;
+        ODR[0]    : F10:0;       // ODR = 100Hz
+        ODR[1]    : F00:0;
+        SPI_MISO  : X:0;         // don't compare — measuring current
+        INT1      : X:0;
+        INT2      : X:0;
+        DATA_READY: X:0;
+        ALL_DATA  : X:0;
+    }
+    REPEAT 10;                   // hold 10 cycles for settle
+}
+
+
+// =============================================================================
+// PATTERN: func_active_mode
+// Purpose: Set device into active measurement mode for IDD measurement
+// Timing:  cont_dc or spi_10mhz
+// =============================================================================
+PATTERN func_active_mode {
+    device_cycle = cont_dc;
+
+    // Assert reset, then release — device boots into default active mode
+    VECTOR {
+        SPI_CS_N  : F10:0;
+        SPI_CLK   : F00:0;
+        SPI_MOSI  : F00:0;
+        RESET_N   : F00:0;       // assert reset LOW
+        MODE[0]   : F00:0;
+        MODE[1]   : F00:0;
+        ODR[0]    : F10:0;
+        ODR[1]    : F00:0;
+        SPI_MISO  : X:0;
+        ALL_DATA  : X:0;
+    }
+    REPEAT 5;                    // hold reset 50us
+
+    VECTOR {
+        RESET_N   : F10:0;       // release reset — device active
+        SPI_CS_N  : F10:0;
+        SPI_CLK   : F00:0;
+        SPI_MOSI  : F00:0;
+        MODE[0]   : F00:0;
+        MODE[1]   : F00:0;
+        ALL_DATA  : X:0;
+    }
+    REPEAT 20;                   // allow 200us boot settle
+}
+
+
+// =============================================================================
+// PATTERN: func_standby_mode
+// Purpose: Set device into standby mode for standby IDD measurement
+// =============================================================================
+PATTERN func_standby_mode {
+    device_cycle = cont_dc;
+
+    VECTOR {
+        SPI_CS_N  : F10:0;
+        SPI_CLK   : F00:0;
+        SPI_MOSI  : F00:0;
+        RESET_N   : F10:0;
+        MODE[0]   : F10:0;       // mode[1:0] = 01 = standby
+        MODE[1]   : F00:0;
+        ODR[0]    : F00:0;
+        ODR[1]    : F00:0;
+        ALL_DATA  : X:0;
+    }
+    REPEAT 50;                   // 500us standby settle
+}
+
+
+// =============================================================================
+// PATTERN: spi_transaction
+// Purpose: Generic 16-bit SPI read/write transaction
+//          Parameters SPI_ADDR and SPI_DATA loaded dynamically by test method
+// Timing:  spi_10mhz (100ns period, CPOL=0 CPHA=0)
+// Notes:   16 clock cycles — 8 bits address/cmd + 8 bits data
+//          CS asserted before first clock, deasserted after last
+// =============================================================================
+PATTERN spi_transaction {
+    device_cycle = spi_10mhz;
+
+    // Cycle 0: CS assert (setup before first clock)
+    VECTOR {
+        SPI_CS_N  : F00:0;       // assert CS_N low
+        SPI_CLK   : F00:0;       // clock idle
+        SPI_MOSI  : F00:0;       // MOSI idle
+        SPI_MISO  : X:0;         // don't compare yet
+    }
+
+    // Cycles 1-8: Send address/command byte (MSB first)
+    // SPI_ADDR[7] — bit 7 = R/W, bits 6:0 = address
+    // Each bit: MOSI transitions at cycle start, captured on CLK rise
+    VECTOR {
+        SPI_CS_N  : F00:0;
+        SPI_CLK   : F00:0;       // CLK low — setup MOSI
+        SPI_MOSI  : F10:0;       // drive ADDR[7] (MSB) — parameterized
+        SPI_MISO  : X:0;
+    }
+    VECTOR {
+        SPI_CS_N  : F00:0;
+        SPI_CLK   : F10:10e-9;   // CLK rise at 10ns — sample on rise
+        SPI_MOSI  : F10:0;       // hold MOSI stable
+        SPI_MISO  : X:0;         // don't compare during address phase
+    }
+    VECTOR {
+        SPI_CS_N  : F00:0;
+        SPI_CLK   : F00:60e-9;   // CLK fall at 60ns
+        SPI_MOSI  : F00:0;       // ADDR[6]
+        SPI_MISO  : X:0;
+    }
+    // ... (cycles 2-8 repeat for each address bit, parameterized)
+    REPEAT_PARAM ADDR_BITS 8;    // repeat for all 8 address bits
+
+    // Cycles 9-16: Send/receive data byte
+    VECTOR {
+        SPI_CS_N  : F00:0;
+        SPI_CLK   : F00:0;
+        SPI_MOSI  : F00:0;       // DATA[7] — parameterized
+        SPI_MISO  : X:0;
+    }
+    VECTOR {
+        SPI_CS_N  : F00:0;
+        SPI_CLK   : F10:10e-9;   // CLK rise — DUT outputs MISO
+        SPI_MOSI  : F00:0;
+        SPI_MISO  : H:25e-9;     // compare MISO 25ns after CLK rise
+    }
+    VECTOR {
+        SPI_CS_N  : F00:0;
+        SPI_CLK   : F00:60e-9;
+        SPI_MOSI  : F00:0;
+        SPI_MISO  : X:0;
+    }
+    REPEAT_PARAM DATA_BITS 8;
+
+    // Final cycle: CS deassert
+    VECTOR {
+        SPI_CS_N  : F10:0;       // deassert CS_N — transaction complete
+        SPI_CLK   : F00:0;
+        SPI_MOSI  : F00:0;
+        SPI_MISO  : X:0;
+    }
+}
+
+
+// =============================================================================
+// PATTERN: vol_voh_miso
+// Purpose: Drive MISO pin to known state for VOL/VOH measurement
+//          Puts device in SPI mode, then reads register to toggle MISO output
+// Timing:  spi_10mhz
+// =============================================================================
+PATTERN vol_voh_miso {
+    device_cycle = spi_10mhz;
+
+    // First: read register to drive MISO to all-zeros (VOL test)
+    // Register 0x00 (device ID = 0x1F) has mix of ones and zeros
+    // Use register that outputs known all-0 or all-1 for level testing
+    VECTOR {
+        SPI_CS_N  : F00:0;
+        SPI_CLK   : F00:0;
+        SPI_MOSI  : F10:0;       // R bit = 1 (read)
+        SPI_MISO  : X:0;
+    }
+    REPEAT 16;                   // 16-bit read transaction
+
+    VECTOR {
+        SPI_CS_N  : F10:0;       // deassert between transactions
+        SPI_CLK   : F00:0;
+        SPI_MISO  : L:0;         // compare: MISO should be low here
+    }
+}
+
+
+// =============================================================================
+// PATTERN: func_reset_sequence
+// Purpose: Verify device reset sequence — assert RESET_N, release, check outputs
+// Timing:  func_50mhz
+// =============================================================================
+PATTERN func_reset_sequence {
+    device_cycle = func_50mhz;
+
+    // Step 1: Assert reset
+    VECTOR {
+        RESET_N   : F00:0;       // drive RESET_N low
+        SPI_CS_N  : F10:0;
+        SPI_CLK   : F00:0;
+        INT1      : X:0;
+        INT2      : X:0;
+        DATA_READY: X:0;         // don't compare during reset
+        ALL_DATA  : X:0;
+    }
+    REPEAT 5;                    // hold reset 5 cycles
+
+    // Step 2: Release reset
+    VECTOR {
+        RESET_N   : F10:0;       // release RESET_N high
+        SPI_CS_N  : F10:0;
+        SPI_CLK   : F00:0;
+        INT1      : X:0;
+        DATA_READY: X:0;
+        ALL_DATA  : X:0;
+    }
+    REPEAT 10;                   // allow boot time
+
+    // Step 3: Verify outputs in default reset state
+    VECTOR {
+        RESET_N   : F10:0;
+        SPI_CS_N  : F10:0;
+        SPI_CLK   : F00:0;
+        INT1      : L:8e-9;      // INT should be low (no interrupt pending)
+        INT2      : L:8e-9;
+        DATA_READY: L:8e-9;      // DATA_READY low until first measurement
+    }
+}
+
+
+// =============================================================================
+// PATTERN: func_interrupt_test
+// Purpose: Verify interrupt output pin toggles correctly
+// Timing:  func_50mhz
+// Notes:   Configure interrupt threshold via SPI, verify INT1 asserts
+// =============================================================================
+PATTERN func_interrupt_test {
+    device_cycle = func_50mhz;
+
+    // Configure INT1 for activity detection via SPI
+    // (SPI transactions embedded in pattern stream)
+    VECTOR {
+        SPI_CS_N  : F00:0;       // start SPI to configure INT threshold
+        SPI_CLK   : F10:10e-9;
+        SPI_MOSI  : F10:0;       // write INT_THRESH register
+        SPI_MISO  : X:0;
+        INT1      : X:0;
+    }
+    REPEAT 16;
+
+    // Wait for interrupt to assert
+    REPEAT 100;
+
+    // Verify INT1 asserts (goes high)
+    VECTOR {
+        SPI_CS_N  : F10:0;
+        SPI_CLK   : F00:0;
+        INT1      : H:8e-9;      // compare: INT1 should be high
+        INT2      : X:0;
+        DATA_READY: X:0;
+    }
+
+    // Clear interrupt via SPI read of status register
+    VECTOR {
+        SPI_CS_N  : F00:0;
+        SPI_CLK   : F10:10e-9;
+        SPI_MOSI  : F10:0;
+        SPI_MISO  : X:0;
+        INT1      : X:0;
+    }
+    REPEAT 16;
+
+    // Verify INT1 deasserts
+    VECTOR {
+        SPI_CS_N  : F10:0;
+        INT1      : L:8e-9;      // compare: INT1 should return low
+    }
+}
+
+
+// =============================================================================
+// PATTERN: scan_full_chain
+// Purpose: Full structural scan test — shift in, shift out, compare
+// Timing:  func_50mhz
+// Notes:   ATPG-generated pattern, here shown as structural stub
+//          Real pattern converted from WGL/STIL using VTRAN or Solstice
+// =============================================================================
+PATTERN scan_full_chain {
+    device_cycle = func_50mhz;
+
+    // Scan Enable assertion
+    VECTOR {
+        SPI_CS_N  : F10:0;       // SE pin asserted (scan mode)
+        SPI_CLK   : F00:0;
+        SPI_MOSI  : F00:0;       // scan in data (LSB first)
+        SPI_MISO  : X:0;         // scan out (don't compare during shift-in)
+        RESET_N   : F10:0;
+        ALL_DATA  : X:0;
+    }
+
+    // Shift in scan data — N cycles = scan chain length
+    // Pattern generated by ATPG tool (Synopsys TetraMAX / Cadence Modus)
+    REPEAT 256;                  // 256-bit scan chain
+
+    // Capture cycle — apply clock to capture functional response
+    VECTOR {
+        SPI_CLK   : F10:0;
+        SPI_CLK   : F00:10e-9;
+        SPI_MISO  : X:0;
+    }
+
+    // Shift out and compare
+    VECTOR {
+        SPI_CLK   : F10:0;
+        SPI_CLK   : F00:10e-9;
+        SPI_MISO  : H:8e-9;      // compare scan out data
+    }
+    REPEAT 256;                  // shift out full chain
+
+    // Scan disable
+    VECTOR {
+        SPI_CS_N  : F10:0;       // SE deasserted (normal mode)
+        SPI_CLK   : F00:0;
+    }
+}
+
+// =============================================================================
+// END SENSOR_IC_vectors.vec
+// =============================================================================

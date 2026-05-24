@@ -1,0 +1,206 @@
+// =============================================================================
+// FILE:        SENSOR_IC.tim
+// DEVICE:      SENSOR_IC — Dummy SPI Accelerometer
+// TESTER:      Advantest V93000 PS1600
+// DESCRIPTION: Timing Setup — test cycle periods and pin edge placements
+//              Four timing sets: functional / SPI / slow_debug / continuity
+//              All times in seconds, relative to cycle start (t=0)
+// REVISION:    1.0
+// =============================================================================
+//
+// Timing Architecture:
+//
+//   SPECS       <- frequency, period, setup/hold margins
+//      |
+//   EQUATIONS   <- compute drive edges (d1,d2) and compare edges (r1,r2)
+//      |
+//   PIN GROUPS  <- timing applied per group
+//      |
+//   VECTOR      <- each cycle executes these edges
+//
+// Edge types:
+//   .d1, .d2    = drive edges (when to change output voltage)
+//   .r1, .r2    = receive/compare edges (when to compare DUT output)
+//   .period     = test cycle duration
+//
+// =============================================================================
+
+
+// -----------------------------------------------------------------------------
+// TIMINGSET 1: func_50mhz — Functional test at 50MHz system clock
+//              Main timing set for digital functional and scan tests
+// -----------------------------------------------------------------------------
+TIMINGSET func_50mhz {
+
+    SPECS {
+        freq        = 50e6;         // Hz — system test clock
+        period      = 1/freq;       // 20ns
+        tsetup      = 3e-9;         // ns — data setup before clock rise
+        thold       = 2e-9;         // ns — data hold after clock rise
+        tpd_max     = 8e-9;         // ns — max propagation delay (output valid)
+        tpd_min     = 1e-9;         // ns — min propagation delay
+        tco         = 2e-9;         // ns — clock-to-output delay
+        duty        = 0.5;          // clock duty cycle (50%)
+    }
+
+    EQUATIONS {
+        // System cycle period — applied to all digital pins
+        ALL_DIGITAL.period  = period;               // 20ns
+
+        // Clock pin — 50MHz, 50% duty
+        SPI_CLK.d1          = 0;                    // rise at t=0ns
+        SPI_CLK.d2          = period * duty;         // fall at t=10ns
+
+        // Input data — drive stable before clock rising edge
+        // Drive at t=0, data must be valid by (period - tsetup)
+        ALL_INPUTS.d1       = 0;                    // drive at start of cycle
+        ALL_INPUTS.d2       = period * duty;         // change at half cycle
+
+        // Reset — drive at t=0, quasi-static
+        RESET_N.d1          = 0;
+        RESET_N.d2          = period * 0.9;
+
+        // Mode/ODR config pins — very slow, quasi-static
+        CTRL_INPUTS.d1      = 0;
+        CTRL_INPUTS.period  = period * 4;            // 4x slower
+
+        // SPI MISO — output from DUT
+        // Strobe after clock rise + propagation delay
+        SPI_MISO.r1         = period * duty + tco + 1e-9;  // ~13ns
+        SPI_MISO.r2         = period - thold;        // close window before next edge
+
+        // Status outputs — INT1, INT2, DATA_READY
+        // Compare in middle of cycle after propagation delay
+        STATUS_OUTPUTS.r1   = tpd_min;
+        STATUS_OUTPUTS.r2   = period - 2e-9;
+
+        // Data bus — parallel readout
+        // Strobe after DUT propagation delay
+        ALL_DATA.r1         = tpd_max;
+        ALL_DATA.r2         = period - thold;
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// TIMINGSET 2: spi_10mhz — SPI protocol timing at 10MHz
+//              Used for SPI register read/write test methods
+//              Slower to accommodate SPI protocol timing margins
+// -----------------------------------------------------------------------------
+TIMINGSET spi_10mhz {
+
+    SPECS {
+        spi_freq    = 10e6;         // Hz — SPI clock rate
+        period      = 1/spi_freq;   // 100ns
+        tcss        = 10e-9;        // ns — CS setup before SPI CLK
+        tcsh        = 10e-9;        // ns — CS hold after SPI CLK
+        tds         = 5e-9;         // ns — MOSI data setup before CLK rise
+        tdh         = 5e-9;         // ns — MOSI data hold after CLK rise
+        tco_spi     = 15e-9;        // ns — MISO valid after CLK fall (CPOL=0)
+        duty        = 0.5;
+    }
+
+    EQUATIONS {
+        ALL_DIGITAL.period  = period;               // 100ns
+
+        // SPI CS_N — assert before first clock, deassert after last
+        SPI_CS_N.d1         = 0;                    // assert low at t=0
+        SPI_CS_N.d2         = period - tcsh;         // deassert high before end
+
+        // SPI CLK — 10MHz, CPOL=0 (idle low)
+        SPI_CLK.d1          = tcss;                 // rise after CS setup
+        SPI_CLK.d2          = tcss + period * duty;  // fall at half cycle
+
+        // SPI MOSI — data valid tds before CLK rise
+        SPI_MOSI.d1         = 0;                    // drive at start of cycle
+        SPI_MOSI.d2         = period * duty;         // change at half cycle
+
+        // SPI MISO — DUT outputs data after CLK fall
+        SPI_MISO.r1         = tcss + period * duty + tco_spi;  // strobe window open
+        SPI_MISO.r2         = period - tdh;          // strobe window close
+
+        // RESET_N — static during SPI test
+        RESET_N.d1          = 0;
+        RESET_N.period      = period * 100;          // quasi-static
+
+        // Status outputs — slow compare
+        STATUS_OUTPUTS.r1   = period * 0.4;
+        STATUS_OUTPUTS.r2   = period * 0.9;
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// TIMINGSET 3: slow_debug — 1MHz debug/characterization timing
+//              Used for margin testing and first-silicon debug
+//              Very wide compare windows — maximize chance of pass
+// -----------------------------------------------------------------------------
+TIMINGSET slow_debug {
+
+    SPECS {
+        freq        = 1e6;          // Hz — 1MHz debug clock
+        period      = 1/freq;       // 1000ns = 1us
+        tsetup      = 50e-9;        // generous setup margin
+        thold       = 50e-9;        // generous hold margin
+        tpd_max     = 200e-9;       // generous propagation budget
+        duty        = 0.5;
+    }
+
+    EQUATIONS {
+        ALL_DIGITAL.period  = period;               // 1us
+
+        SPI_CLK.d1          = 0;
+        SPI_CLK.d2          = period * duty;         // 500ns
+
+        ALL_INPUTS.d1       = 0;
+        ALL_INPUTS.d2       = period * duty;
+
+        SPI_MISO.r1         = period * duty + 20e-9;
+        SPI_MISO.r2         = period - thold;
+
+        STATUS_OUTPUTS.r1   = tpd_max;
+        STATUS_OUTPUTS.r2   = period * 0.9;
+
+        ALL_DATA.r1         = tpd_max;
+        ALL_DATA.r2         = period * 0.9;
+
+        RESET_N.d1          = 0;
+        RESET_N.period      = period * 10;
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// TIMINGSET 4: cont_dc — Continuity and DC parametric timing
+//              Very slow — quasi-static for PPMU measurements
+//              Long period allows DUT to settle before measurement
+// -----------------------------------------------------------------------------
+TIMINGSET cont_dc {
+
+    SPECS {
+        period      = 10e-6;        // 10us — quasi-static
+        settle_time = 5e-6;         // 5us — allow pin to settle
+        meas_time   = 8e-6;         // 8us — measurement window
+    }
+
+    EQUATIONS {
+        ALL_DIGITAL.period  = period;               // 10us
+
+        // Force at t=0, measure after settle
+        ALL_INPUTS.d1       = 0;
+        ALL_INPUTS.d2       = period * 0.5;
+
+        // Outputs — compare after settle time
+        ALL_OUTPUTS.r1      = settle_time;
+        ALL_OUTPUTS.r2      = meas_time;
+
+        // All other timing quasi-static
+        SPI_CLK.d1          = 0;
+        SPI_CLK.d2          = period * 0.5;
+        RESET_N.d1          = 0;
+    }
+}
+
+// =============================================================================
+// END SENSOR_IC.tim
+// =============================================================================

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V93K RAG Assistant</title>
+    
+    <!-- Markdown & Diagram libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    
+    <!-- Highlight.js with VS2015 theme (better for dark mode) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #1e1e1e; 
+            color: #d4d4d4; 
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        #chat { 
+            flex: 1; 
+            overflow-y: auto; 
+            border: 1px solid #444; 
+            padding: 25px; 
+            background: #252526; 
+            margin-bottom: 10px;
+            line-height: 1.8;
+        }
+        
+        /* Markdown rendering */
+        .message h1, .message h2, .message h3, .message h4 {
+            color: #4ec9b0;
+            margin: 20px 0 10px 0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .message h1 { font-size: 24px; }
+        .message h2 { font-size: 20px; }
+        .message h3 { font-size: 16px; }
+        .message h4 { font-size: 14px; }
+        
+        .message p {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .message ul, .message ol {
+            margin: 10px 0 10px 20px;
+        }
+        
+        .message li {
+            margin: 5px 0;
+            line-height: 1.6;
+        }
+        
+        .message table {
+            border-collapse: collapse;
+            margin: 15px 0;
+            width: 100%;
+            font-size: 12px;
+            background: #1e1e1e;
+        }
+        
+        .message table td, .message table th {
+            border: 1px solid #555;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .message table th {
+            background: #3e3e42;
+            color: #4ec9b0;
+            font-weight: bold;
+        }
+        
+        .message table tr:nth-child(even) {
+            background: #2d2d30;
+        }
+        
+        /* Code Blocks - VS2015 Theme */
+        .message pre {
+            background: #1e1e1e !important;
+            border-left: 4px solid #007acc;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            border-radius: 4px;
+            border: 1px solid #3e3e42;
+            font-family: 'Courier New', 'Monaco', monospace;
+        }
+        
+        .message pre code {
+            background: transparent !important;
+            color: #d4d4d4 !important;
+        }
+        
+        .message code {
+            color: #ce9178;
+            font-family: 'Courier New', monospace;
+            background: #2d2d30;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+        
+        /* Blockquotes */
+        .message blockquote {
+            border-left: 4px solid #4ec9b0;
+            padding-left: 15px;
+            margin: 15px 0;
+            color: #9cdcfe;
+            font-style: italic;
+        }
+        
+        /* Diagrams */
+        .mermaid {
+            background: #1e1e1e;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+            border: 1px solid #444;
+            display: flex;
+            justify-content: center;
+        }
+        
+        /* Messages */
+        .message { 
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        
+        .user { 
+            color: #ff8c00; 
+            font-weight: bold;
+            background: #2d2d30;
+            padding: 12px;
+            border-left: 4px solid #ff8c00;
+            margin-bottom: 10px;
+        }
+        
+        .user::before {
+            content: "> ";
+            color: #ff8c00;
+        }
+        
+        .bot { 
+            color: #d4d4d4;
+            background: transparent;
+        }
+        
+        /* Input */
+        .input-area { 
+            display: flex; 
+            gap: 10px;
+            align-items: center;
+        }
+        #input { 
+            flex: 1; 
+            padding: 12px; 
+            background: #3e3e42; 
+            color: #ff8c00;
+            border: 1px solid #555; 
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+        
+        #input::placeholder {
+            color: #858585;
+        }
+        
+        #input:focus {
+            outline: none;
+            border-color: #ff8c00;
+            box-shadow: 0 0 5px rgba(255, 140, 0, 0.5);
+        }
+        
+        button { 
+            padding: 12px 20px; 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-family: monospace;
+            font-weight: bold;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        button:hover { 
+            background: #005a9e; 
+        }
+        button:active {
+            background: #004578;
+        }
+        
+        .loading { 
+            color: #858585; 
+            font-style: italic; 
+        }
+        
+        h2 {
+            color: #4ec9b0;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+        
+        /* Scrollbar */
+        #chat::-webkit-scrollbar {
+            width: 12px;
+        }
+        #chat::-webkit-scrollbar-track {
+            background: #252526;
+        }
+        #chat::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 6px;
+        }
+        #chat::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+        
+        .message a {
+            color: #4ec9b0;
+            text-decoration: none;
+            border-bottom: 1px dotted #4ec9b0;
+        }
+        
+        .message a:hover {
+            color: #6dd5d2;
+        }
+        
+        .message strong {
+            color: #ce9178;
+            font-weight: bold;
+        }
+        
+        .message em {
+            color: #9cdcfe;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+
+
+ 
+<body>
+    <div class="container">
+        <h2>V93K RAG Assistant</h2>
+        <div id="chat"></div>
+        <div class="input-area">
+            <input id="input" type="text" placeholder="Ask about V93K test programs..." autocomplete="off">
+            <button onclick="send()">Send</button>
+            <button onclick="clearChat()">Clear</button>
+        </div>
+    </div>
+
+    <script>
+        // Configure marked for better rendering
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            pedantic: false
+        });
+        
+        // Configure mermaid for diagrams
+        mermaid.initialize({ 
+            startOnLoad: true, 
+            theme: 'dark',
+            securityLevel: 'loose'
+        });
+        
+        const chat = document.getElementById('chat');
+        const input = document.getElementById('input');
+        const sid = 'web_' + Math.random().toString(36).substr(2, 9);
+        
+        function renderMarkdown(text) {
+            let html = marked.parse(text);
+            return html;
+        }
+        
+        function add(text, user) {
+            const div = document.createElement('div');
+            div.className = 'message ' + (user ? 'user' : 'bot');
+            
+            if (user) {
+                div.textContent = text;
+            } else {
+                div.innerHTML = renderMarkdown(text);
+                
+                // Highlight code blocks with VS Code style
+                div.querySelectorAll('pre code').forEach(block => {
+                    if (block.className) {
+                        const lang = block.className.replace('language-', '');
+                        try {
+                            const highlighted = hljs.highlight(block.textContent, { language: lang, ignoreIllegals: true }).value;
+                            block.innerHTML = highlighted;
+                            block.classList.add('hljs');
+                        } catch (e) {
+                            try {
+                                const highlighted = hljs.highlightAuto(block.textContent).value;
+                                block.innerHTML = highlighted;
+                                block.classList.add('hljs');
+                            } catch (e2) {
+                                // Keep original if highlighting fails
+                            }
+                        }
+                    } else {
+                        try {
+                            const highlighted = hljs.highlightAuto(block.textContent).value;
+                            block.innerHTML = highlighted;
+                            block.classList.add('hljs');
+                        } catch (e) {
+                            // Keep original if highlighting fails
+                        }
+                    }
+                });
+                
+                // Initialize mermaid diagrams
+                if (text.includes('```mermaid')) {
+                    setTimeout(() => {
+                        mermaid.contentLoaded();
+                    }, 100);
+                }
+            }
+            
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        async function send() {
+            const msg = input.value.trim();
+            if (!msg) return;
+            add(msg, true);
+            input.value = '';
+            input.focus();
+            
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message loading';
+            loadingDiv.textContent = 'Thinking...';
+            chat.appendChild(loadingDiv);
+            chat.scrollTop = chat.scrollHeight;
+            
+            try {
+                const res = await fetch('/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sid, message: msg })
+                });
+                
+                if (!res.ok) {
+                    loadingDiv.remove();
+                    add('Error: ' + res.statusText, false);
+                    return;
+                }
+                
+                loadingDiv.remove();
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let text = '';
+                const div = document.createElement('div');
+                div.className = 'message bot';
+                chat.appendChild(div);
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    text += decoder.decode(value);
+                    div.innerHTML = renderMarkdown(text);
+                    
+                    // Re-highlight as content streams
+                    div.querySelectorAll('pre code').forEach(block => {
+                        if (!block.classList.contains('hljs')) {
+                            const lang = block.className.replace('language-', '');
+                            try {
+                                const highlighted = hljs.highlight(block.textContent, { language: lang, ignoreIllegals: true }).value;
+                                block.innerHTML = highlighted;
+                                block.classList.add('hljs');
+                            } catch (e) {
+                                try {
+                                    const highlighted = hljs.highlightAuto(block.textContent).value;
+                                    block.innerHTML = highlighted;
+                                    block.classList.add('hljs');
+                                } catch (e2) {}
+                            }
+                        }
+                    });
+                    
+                    chat.scrollTop = chat.scrollHeight;
+                }
+                
+                // Final mermaid render
+                setTimeout(() => {
+                    mermaid.contentLoaded();
+                }, 200);
+                
+            } catch (err) {
+                loadingDiv.remove();
+                add('Error: ' + err.message, false);
+            }
+        }
+        
+        function clearChat() {
+            fetch('/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sid })
+            });
+            chat.innerHTML = '';
+            add('Session cleared', false);
+            input.focus();
+        }
+        
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') send();
+        });
+        
+        input.focus();
+        add('Ready. Ask about V93K test programs.', false);
+    </script>
+</body>
+</html>

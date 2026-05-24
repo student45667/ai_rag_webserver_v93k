@@ -1,0 +1,240 @@
+# =============================================================================
+# FILE:        SENSOR_IC.lim
+# DEVICE:      SENSOR_IC — Dummy SPI Accelerometer
+# TESTER:      Advantest V93000 PS1600 / SmarTest 7
+# DESCRIPTION: Limit Table — maps test numbers to test names, lo/hi limits,
+#              units, pass bin, and fail bin
+#              Mirrors test suite sequence defined in SENSOR_IC.tf
+#              Referenced by TESTSET().judgeAndLog_*() in test methods
+# FORMAT:      test_num | test_name | lo_limit | hi_limit | unit | pass_bin | fail_bin
+# REVISION:    1.0
+# =============================================================================
+
+LIMITTABLE SENSOR_IC_limits {
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 1 — CONTINUITY
+# Test number range: 1000–1099
+# Purpose: verify pin contact via ESD diode forward bias
+# Method:  force -100uA, measure voltage
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  1000      CONT_inputs_SPI_CS_N         -0.90      -0.30      V      1         10
+  1001      CONT_inputs_SPI_CLK          -0.90      -0.30      V      1         10
+  1002      CONT_inputs_SPI_MOSI         -0.90      -0.30      V      1         10
+  1003      CONT_inputs_RESET_N          -0.90      -0.30      V      1         10
+  1004      CONT_inputs_MODE0            -0.90      -0.30      V      1         10
+  1005      CONT_inputs_MODE1            -0.90      -0.30      V      1         10
+  1006      CONT_inputs_ODR0             -0.90      -0.30      V      1         10
+  1007      CONT_inputs_ODR1             -0.90      -0.30      V      1         10
+  1010      CONT_outputs_SPI_MISO        -0.90      -0.25      V      1         11
+  1011      CONT_outputs_INT1            -0.90      -0.25      V      1         11
+  1012      CONT_outputs_INT2            -0.90      -0.25      V      1         11
+  1013      CONT_outputs_DATA_READY      -0.90      -0.25      V      1         11
+  1020      CONT_outputs_XDATA0          -0.90      -0.25      V      1         11
+  1021      CONT_outputs_XDATA1          -0.90      -0.25      V      1         11
+  1022      CONT_outputs_XDATA2          -0.90      -0.25      V      1         11
+  1023      CONT_outputs_XDATA3          -0.90      -0.25      V      1         11
+  1024      CONT_outputs_XDATA4          -0.90      -0.25      V      1         11
+  1025      CONT_outputs_XDATA5          -0.90      -0.25      V      1         11
+  1026      CONT_outputs_XDATA6          -0.90      -0.25      V      1         11
+  1027      CONT_outputs_XDATA7          -0.90      -0.25      V      1         11
+  1030      CONT_outputs_YDATA0          -0.90      -0.25      V      1         11
+  1031      CONT_outputs_YDATA1          -0.90      -0.25      V      1         11
+  1032      CONT_outputs_YDATA2          -0.90      -0.25      V      1         11
+  1033      CONT_outputs_YDATA3          -0.90      -0.25      V      1         11
+  1034      CONT_outputs_YDATA4          -0.90      -0.25      V      1         11
+  1035      CONT_outputs_YDATA5          -0.90      -0.25      V      1         11
+  1036      CONT_outputs_YDATA6          -0.90      -0.25      V      1         11
+  1037      CONT_outputs_YDATA7          -0.90      -0.25      V      1         11
+  1040      CONT_outputs_ZDATA0          -0.90      -0.25      V      1         11
+  1041      CONT_outputs_ZDATA1          -0.90      -0.25      V      1         11
+  1042      CONT_outputs_ZDATA2          -0.90      -0.25      V      1         11
+  1043      CONT_outputs_ZDATA3          -0.90      -0.25      V      1         11
+  1044      CONT_outputs_ZDATA4          -0.90      -0.25      V      1         11
+  1045      CONT_outputs_ZDATA5          -0.90      -0.25      V      1         11
+  1046      CONT_outputs_ZDATA6          -0.90      -0.25      V      1         11
+  1047      CONT_outputs_ZDATA7          -0.90      -0.25      V      1         11
+  1050      CONT_power_AVDD              -0.10       0.10      V      1         12
+  1051      CONT_power_DVDD              -0.10       0.10      V      1         12
+  1052      CONT_power_IOVDD             -0.10       0.10      V      1         12
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 2 — IDD SUPPLY CURRENT
+# Test number range: 2000–2099
+# Purpose: verify device draws expected current in each operating mode
+# Method:  apply VDD, run mode pattern, measure DPS current
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  2000      IDD_active_AVDD              0.0        80.0e-3    A      1         20
+  2001      IDD_active_DVDD              0.0        60.0e-3    A      1         21
+  2002      IDD_active_IOVDD             0.0        20.0e-3    A      1         22
+  2010      IDD_total_active             1.0e-3     150.0e-3   A      1         23
+  2020      IDD_standby_AVDD             0.0        5.0e-3     A      1         24
+  2021      IDD_standby_DVDD             0.0        3.0e-3     A      1         24
+  2030      IDD_total_standby            0.0        8.0e-3     A      1         24
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 3 — IDDQ QUIESCENT LEAKAGE
+# Test number range: 3000–3099
+# Purpose: detect stuck-on transistors and excessive leakage
+# Method:  drive quiescent state pattern, long settle, measure residual current
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  3000      IDDQ_AVDD                    0.0        1.0e-6     A      1         30
+  3001      IDDQ_DVDD                    0.0        1.0e-6     A      1         31
+  3002      IDDQ_IOVDD                   0.0        500.0e-9   A      1         32
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 4 — INPUT LEAKAGE IIL / IIH
+# Test number range: 4000–4099
+# Purpose: verify input pins not loading bus excessively
+# Method:  force VIL → measure IIL; force VIH → measure IIH
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  4000      IIL_SPI_inputs               -10.0e-6   0.0        A      1         42
+  4001      IIH_SPI_inputs               0.0        10.0e-6    A      1         43
+  4010      IIL_CTRL_inputs              -10.0e-6   0.0        A      1         42
+  4011      IIH_CTRL_inputs              0.0        10.0e-6    A      1         43
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 5 — OUTPUT DRIVE LEVELS VOL / VOH
+# Test number range: 5000–5099
+# Purpose: verify output drive strength
+# Method:  force load current, measure resulting output voltage
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  5000      VOL_SPI_MISO                 0.0        0.4        V      1         40
+  5001      VOH_SPI_MISO                 1.4        2.0        V      1         41
+  5010      VOL_INT1                     0.0        0.4        V      1         40
+  5011      VOH_INT1                     1.4        2.0        V      1         41
+  5012      VOL_INT2                     0.0        0.4        V      1         40
+  5013      VOH_INT2                     1.4        2.0        V      1         41
+  5020      VOL_DATA_READY               0.0        0.4        V      1         40
+  5021      VOH_DATA_READY               1.4        2.0        V      1         41
+  5030      VOL_XDATA_bus                0.0        0.4        V      1         40
+  5031      VOH_XDATA_bus                1.4        2.0        V      1         41
+  5032      VOL_YDATA_bus                0.0        0.4        V      1         40
+  5033      VOH_YDATA_bus                1.4        2.0        V      1         41
+  5034      VOL_ZDATA_bus                0.0        0.4        V      1         40
+  5035      VOH_ZDATA_bus                1.4        2.0        V      1         41
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 6 — SCAN TEST
+# Test number range: 6000–6099
+# Purpose: structural fault coverage via scan chain
+# Method:  load ATPG pattern, execute, compare
+# Note:    functional tests use pass=1 / fail=0 convention
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  6000      SCAN_full_chain              1          1          bin    1         50
+  6001      SCAN_march_x                 1          1          bin    1         50
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 7 — SPI PROTOCOL TESTS
+# Test number range: 7000–7099
+# Purpose: verify SPI register read/write integrity
+# Method:  write test pattern, read back, compare; check device ID
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  7000      SPI_reg_read_DEVID           0x1F       0x1F       hex    1         51
+  7001      SPI_reg_rw_BW_RATE           1          1          bin    1         52
+  7002      SPI_reg_rw_INT_ENABLE        1          1          bin    1         52
+  7003      SPI_timing_CS_pulse          8.0e-9     100.0e-9   s      1         70
+  7004      SPI_timing_CLK_period        8.0e-9     100.0e-9   s      1         70
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 8 — FUNCTIONAL TESTS
+# Test number range: 8000–8099
+# Purpose: verify device functional behavior via pattern execution
+# Method:  load pattern, execute, compare all outputs
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  8000      FUNC_reset_sequence          1          1          bin    1         53
+  8001      FUNC_interrupt_INT1          1          1          bin    1         54
+  8002      FUNC_interrupt_INT2          1          1          bin    1         54
+  8003      FUNC_data_ready              1          1          bin    1         54
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 9 — MEMS SELF-TEST
+# Test number range: 9000–9099
+# Purpose: verify MEMS accelerometer mechanical response
+# Method:  enable self-test bit via SPI, read delta vs baseline
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  9000      SELFTEST_X_axis_LSB          100        2000       LSB    1         60
+  9001      SELFTEST_Y_axis_LSB          100        2000       LSB    1         61
+  9002      SELFTEST_Z_axis_LSB          100        2000       LSB    1         62
+  9010      SELFTEST_X_axis_mg           100.0      1200.0     mg     1         60
+  9011      SELFTEST_Y_axis_mg           100.0      1200.0     mg     1         61
+  9012      SELFTEST_Z_axis_mg           100.0      1200.0     mg     1         62
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 10 — TIMING MARGIN
+# Test number range: 10000–10099
+# Purpose: verify setup/hold timing margins at operating frequency
+# Method:  shmoo edge placement, find pass/fail boundary
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# test_num  test_name                    lo_limit   hi_limit   unit   pass_bin  fail_bin
+  10000     SETUP_margin_SPI             1.0e-9     20.0e-9    s      1         70
+  10001     HOLD_margin_SPI              0.5e-9     20.0e-9    s      1         71
+  10002     PROP_delay_MISO              1.0e-9     15.0e-9    s      1         72
+
+}
+
+# =============================================================================
+# BIN SUMMARY — cross reference
+# =============================================================================
+#
+# pass_bin  1   → PASS — all tests within limits
+#
+# fail_bin  10  → continuity input pin open/short
+# fail_bin  11  → continuity output pin open/short
+# fail_bin  12  → continuity power pin fault
+# fail_bin  20  → IDD AVDD overcurrent active
+# fail_bin  21  → IDD DVDD overcurrent active
+# fail_bin  22  → IDD IOVDD overcurrent active
+# fail_bin  23  → IDD total supply out of spec
+# fail_bin  24  → IDD standby too high
+# fail_bin  30  → IDDQ AVDD leakage
+# fail_bin  31  → IDDQ DVDD leakage
+# fail_bin  32  → IDDQ IOVDD leakage
+# fail_bin  40  → VOL output low too high
+# fail_bin  41  → VOH output high too low
+# fail_bin  42  → IIL input leakage low
+# fail_bin  43  → IIH input leakage high
+# fail_bin  50  → scan chain failure
+# fail_bin  51  → SPI read device ID mismatch
+# fail_bin  52  → SPI read/write check failed
+# fail_bin  53  → functional reset sequence failed
+# fail_bin  54  → functional interrupt/data_ready failed
+# fail_bin  60  → MEMS self-test X axis out of range
+# fail_bin  61  → MEMS self-test Y axis out of range
+# fail_bin  62  → MEMS self-test Z axis out of range
+# fail_bin  70  → timing setup margin violation
+# fail_bin  71  → timing hold margin violation
+# fail_bin  72  → timing propagation delay violation
+# fail_bin  255 → untested / abort
+#
+# =============================================================================
+# END SENSOR_IC.lim
+# =============================================================================

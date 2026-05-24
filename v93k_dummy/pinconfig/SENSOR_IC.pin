@@ -1,0 +1,112 @@
+// =============================================================================
+// FILE:        SENSOR_IC.pin
+// DEVICE:      SENSOR_IC — Dummy SPI Accelerometer (3-axis, 16-bit)
+// TESTER:      Advantest V93000 PS1600
+// DESCRIPTION: Pin Configuration — maps logical pin names to tester channels
+//              Defines pin groups used by levels, timing, and test methods
+// REVISION:    1.0
+// =============================================================================
+
+PINCONFIG SENSOR_IC_config {
+
+    // -------------------------------------------------------------------------
+    // POWER SUPPLY PINS — DPS (Device Power Supply) channels
+    // Each DPS pin maps to a DC Scale DPS32 channel
+    // vout and ilimit are nominal defaults; overridden by levelset
+    // -------------------------------------------------------------------------
+    DPS_PIN  AVDD     chan=101  vout=1.8   ilimit=200e-3;   // analog core supply
+    DPS_PIN  DVDD     chan=102  vout=1.8   ilimit=150e-3;   // digital core supply
+    DPS_PIN  IOVDD    chan=103  vout=1.8   ilimit=100e-3;   // IO supply
+    DPS_PIN  AGND     chan=104  vout=0.0   ilimit=0;        // analog ground ref
+    DPS_PIN  DGND     chan=105  vout=0.0   ilimit=0;        // digital ground ref
+
+    // -------------------------------------------------------------------------
+    // DIGITAL I/O PINS — Pin Scale 1600 channels
+    // -------------------------------------------------------------------------
+    // SPI interface
+    PIN  SPI_CS_N     chan=201;    // SPI chip select (active low)
+    PIN  SPI_CLK      chan=202;    // SPI clock input
+    PIN  SPI_MOSI     chan=203;    // SPI master out slave in
+    PIN  SPI_MISO     chan=204;    // SPI master in slave out
+
+    // Control / status
+    PIN  RESET_N      chan=205;    // device reset (active low)
+    PIN  INT1         chan=206;    // interrupt output 1
+    INT2         chan=207;    // interrupt output 2
+    PIN  DATA_READY   chan=208;    // data ready output
+
+    // Accelerometer data bus (parallel readout mode)
+    PIN  XDATA[0]     chan=210;
+    PIN  XDATA[1]     chan=211;
+    PIN  XDATA[2]     chan=212;
+    PIN  XDATA[3]     chan=213;
+    PIN  XDATA[4]     chan=214;
+    PIN  XDATA[5]     chan=215;
+    PIN  XDATA[6]     chan=216;
+    PIN  XDATA[7]     chan=217;
+
+    PIN  YDATA[0]     chan=220;
+    PIN  YDATA[1]     chan=221;
+    PIN  YDATA[2]     chan=222;
+    PIN  YDATA[3]     chan=223;
+    PIN  YDATA[4]     chan=224;
+    PIN  YDATA[5]     chan=225;
+    PIN  YDATA[6]     chan=226;
+    PIN  YDATA[7]     chan=227;
+
+    PIN  ZDATA[0]     chan=230;
+    PIN  ZDATA[1]     chan=231;
+    PIN  ZDATA[2]     chan=232;
+    PIN  ZDATA[3]     chan=233;
+    PIN  ZDATA[4]     chan=234;
+    PIN  ZDATA[5]     chan=235;
+    PIN  ZDATA[6]     chan=236;
+    PIN  ZDATA[7]     chan=237;
+
+    // Mode / config pins
+    PIN  MODE[0]      chan=240;    // operating mode select 0
+    PIN  MODE[1]      chan=241;    // operating mode select 1
+    PIN  ODR[0]       chan=242;    // output data rate select 0
+    PIN  ODR[1]       chan=243;    // output data rate select 1
+
+    // -------------------------------------------------------------------------
+    // PIN GROUPS — logical collections used in test methods
+    // Group names are passed as parameters to test methods
+    // -------------------------------------------------------------------------
+
+    // Power groups
+    GROUP  ALL_POWER      = AVDD, DVDD, IOVDD;
+    GROUP  ALL_GND        = AGND, DGND;
+    GROUP  ANALOG_POWER   = AVDD, AGND;
+    GROUP  DIGITAL_POWER  = DVDD, DGND;
+
+    // SPI interface group
+    GROUP  SPI_ALL        = SPI_CS_N, SPI_CLK, SPI_MOSI, SPI_MISO;
+    GROUP  SPI_INPUTS     = SPI_CS_N, SPI_CLK, SPI_MOSI;
+    GROUP  SPI_OUTPUTS    = SPI_MISO;
+
+    // Control pin groups
+    GROUP  CTRL_INPUTS    = RESET_N, MODE[0], MODE[1], ODR[0], ODR[1];
+    GROUP  STATUS_OUTPUTS = INT1, INT2, DATA_READY;
+
+    // Data bus groups
+    GROUP  XDATA_BUS      = XDATA[0..7];
+    GROUP  YDATA_BUS      = YDATA[0..7];
+    GROUP  ZDATA_BUS      = ZDATA[0..7];
+    GROUP  ALL_DATA       = XDATA[0..7], YDATA[0..7], ZDATA[0..7];
+
+    // Functional groups
+    GROUP  ALL_INPUTS     = SPI_INPUTS, CTRL_INPUTS;
+    GROUP  ALL_OUTPUTS    = SPI_OUTPUTS, STATUS_OUTPUTS, ALL_DATA;
+    GROUP  ALL_DIGITAL    = ALL_INPUTS, ALL_OUTPUTS;
+
+    // Continuity test groups — test each direction separately
+    GROUP  CONT_INPUTS    = SPI_CS_N, SPI_CLK, SPI_MOSI,
+                            RESET_N, MODE[0], MODE[1], ODR[0], ODR[1];
+    GROUP  CONT_OUTPUTS   = SPI_MISO, INT1, INT2, DATA_READY,
+                            XDATA[0..7], YDATA[0..7], ZDATA[0..7];
+}
+
+// =============================================================================
+// END SENSOR_IC.pin
+// =============================================================================
