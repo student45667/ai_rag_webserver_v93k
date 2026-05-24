@@ -1,0 +1,219 @@
+// =============================================================================
+// FILE:        SENSOR_IC.lvl
+// DEVICE:      SENSOR_IC — Dummy SPI Accelerometer
+// TESTER:      Advantest V93000 PS1600
+// DESCRIPTION: Level Setup — drive/compare voltages and DPS supply settings
+//              Three corners: NOM / LO / HI
+//              Architecture: SPECS hold named variables
+//                            EQUATIONS compute derived hardware values
+// REVISION:    1.0
+// =============================================================================
+//
+// Level Setup Architecture:
+//
+//   SPECS       <- named variables (datasheet values)
+//      |
+//   EQUATIONS   <- compute VIL/VIH/VOL/VOH/DPS from SPECS
+//      |
+//   PINCONFIG   <- applies computed values to pin groups
+//      |
+//   HARDWARE    <- downloaded to tester at test start
+//
+// =============================================================================
+
+
+// -----------------------------------------------------------------------------
+// LEVELSET 1: NOM — Nominal 1.8V operation (typical production test corner)
+// -----------------------------------------------------------------------------
+LEVELSET nom_1v8 {
+
+    SPECS {
+        // Supply voltages
+        avdd_v      = 1.8;          // analog supply V
+        dvdd_v      = 1.8;          // digital supply V
+        iovdd_v     = 1.8;          // IO supply V
+
+        // Supply current limits (max expected + 20% margin)
+        avdd_ilim   = 200e-3;       // A — analog supply limit
+        dvdd_ilim   = 150e-3;       // A — digital supply limit
+        iovdd_ilim  = 100e-3;       // A — IO supply limit
+
+        // Digital input levels — referenced to IOVDD
+        vil_pct     = 0.2;          // VIL as fraction of IOVDD  (0.36V)
+        vih_pct     = 0.7;          // VIH as fraction of IOVDD  (1.26V)
+
+        // Digital output levels — guaranteed drive capability
+        vol_abs     = 0.4;          // VOL max absolute (V)
+        voh_abs     = 1.4;          // VOH min absolute (V)
+
+        // Termination — mid-rail for AC stability
+        vterm_pct   = 0.5;          // VTERM as fraction of IOVDD (0.9V)
+
+        // DPS discharge time after test
+        dps_discharge_ms = 10e-3;   // s — capacitor discharge time
+    }
+
+    EQUATIONS {
+        // DPS power rails
+        AVDD.vout           = avdd_v;
+        AVDD.ilimit         = avdd_ilim;
+        AVDD.discharge_time = dps_discharge_ms;
+
+        DVDD.vout           = dvdd_v;
+        DVDD.ilimit         = dvdd_ilim;
+        DVDD.discharge_time = dps_discharge_ms;
+
+        IOVDD.vout          = iovdd_v;
+        IOVDD.ilimit        = iovdd_ilim;
+        IOVDD.discharge_time= dps_discharge_ms;
+
+        AGND.vout           = 0.0;
+        DGND.vout           = 0.0;
+
+        // Drive levels — applied to all input pins
+        ALL_INPUTS.vil      = iovdd_v * vil_pct;    // 0.36V
+        ALL_INPUTS.vih      = iovdd_v * vih_pct;    // 1.26V
+
+        // Compare thresholds — applied to all output pins
+        ALL_OUTPUTS.vol     = vol_abs;              // 0.4V
+        ALL_OUTPUTS.voh     = voh_abs;              // 1.4V
+
+        // Termination voltage
+        ALL_DIGITAL.vterm   = iovdd_v * vterm_pct;  // 0.9V
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// LEVELSET 2: LO — Low voltage corner (min supply, worst-case slow)
+// -----------------------------------------------------------------------------
+LEVELSET lo_1v62 {
+
+    SPECS {
+        avdd_v      = 1.62;         // AVDD -10% of nominal
+        dvdd_v      = 1.62;
+        iovdd_v     = 1.62;
+
+        avdd_ilim   = 220e-3;       // slightly higher limit at low V
+        dvdd_ilim   = 170e-3;
+        iovdd_ilim  = 110e-3;
+
+        vil_pct     = 0.2;
+        vih_pct     = 0.7;
+        vol_abs     = 0.4;
+        voh_abs     = 1.2;          // VOH lower at reduced supply
+        vterm_pct   = 0.5;
+        dps_discharge_ms = 10e-3;
+    }
+
+    EQUATIONS {
+        AVDD.vout           = avdd_v;
+        AVDD.ilimit         = avdd_ilim;
+        AVDD.discharge_time = dps_discharge_ms;
+
+        DVDD.vout           = dvdd_v;
+        DVDD.ilimit         = dvdd_ilim;
+
+        IOVDD.vout          = iovdd_v;
+        IOVDD.ilimit        = iovdd_ilim;
+
+        AGND.vout           = 0.0;
+        DGND.vout           = 0.0;
+
+        ALL_INPUTS.vil      = iovdd_v * vil_pct;    // 0.324V
+        ALL_INPUTS.vih      = iovdd_v * vih_pct;    // 1.134V
+
+        ALL_OUTPUTS.vol     = vol_abs;
+        ALL_OUTPUTS.voh     = voh_abs;
+
+        ALL_DIGITAL.vterm   = iovdd_v * vterm_pct;  // 0.81V
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// LEVELSET 3: HI — High voltage corner (max supply, worst-case fast)
+// -----------------------------------------------------------------------------
+LEVELSET hi_1v98 {
+
+    SPECS {
+        avdd_v      = 1.98;         // AVDD +10% of nominal
+        dvdd_v      = 1.98;
+        iovdd_v     = 1.98;
+
+        avdd_ilim   = 200e-3;
+        dvdd_ilim   = 150e-3;
+        iovdd_ilim  = 100e-3;
+
+        vil_pct     = 0.2;
+        vih_pct     = 0.7;
+        vol_abs     = 0.4;
+        voh_abs     = 1.6;          // VOH higher at elevated supply
+        vterm_pct   = 0.5;
+        dps_discharge_ms = 10e-3;
+    }
+
+    EQUATIONS {
+        AVDD.vout           = avdd_v;
+        AVDD.ilimit         = avdd_ilim;
+        AVDD.discharge_time = dps_discharge_ms;
+
+        DVDD.vout           = dvdd_v;
+        DVDD.ilimit         = dvdd_ilim;
+
+        IOVDD.vout          = iovdd_v;
+        IOVDD.ilimit        = iovdd_ilim;
+
+        AGND.vout           = 0.0;
+        DGND.vout           = 0.0;
+
+        ALL_INPUTS.vil      = iovdd_v * vil_pct;    // 0.396V
+        ALL_INPUTS.vih      = iovdd_v * vih_pct;    // 1.386V
+
+        ALL_OUTPUTS.vol     = vol_abs;
+        ALL_OUTPUTS.voh     = voh_abs;
+
+        ALL_DIGITAL.vterm   = iovdd_v * vterm_pct;  // 0.99V
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// LEVELSET 4: DC_ONLY — Power-only levelset for DC parametric tests
+//             No drive/compare levels — used during IDD/IDDQ measurement
+//             Pins tri-stated, only DPS active
+// -----------------------------------------------------------------------------
+LEVELSET dc_only {
+
+    SPECS {
+        avdd_v      = 1.8;
+        dvdd_v      = 1.8;
+        iovdd_v     = 1.8;
+        avdd_ilim   = 500e-3;       // wider limit for initial powerup
+        dvdd_ilim   = 500e-3;
+        iovdd_ilim  = 500e-3;
+        dps_discharge_ms = 20e-3;
+    }
+
+    EQUATIONS {
+        AVDD.vout           = avdd_v;
+        AVDD.ilimit         = avdd_ilim;
+        AVDD.discharge_time = dps_discharge_ms;
+
+        DVDD.vout           = dvdd_v;
+        DVDD.ilimit         = dvdd_ilim;
+
+        IOVDD.vout          = iovdd_v;
+        IOVDD.ilimit        = iovdd_ilim;
+
+        AGND.vout           = 0.0;
+        DGND.vout           = 0.0;
+
+        // All digital pins tristated — no drive, no compare
+        ALL_DIGITAL.state   = TRISTATE;
+    }
+}
+
+// =============================================================================
+// END SENSOR_IC.lvl
+// =============================================================================
