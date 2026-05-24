@@ -7,17 +7,38 @@ Built on Qwen3.5-9B Q4, ChromaDB, and FastAPI — runs entirely on your machine 
 
 ## What It Does
 
-Query your V93000 test program files in plain English. Ask about test methods, limits, timing, pin groups, or bin assignments. Request changes across multiple interconnected files. The assistant understands the full dependency chain between `.tf`, `.lim`, `.spec`, `.pin`, `.lvl`, `.tim`, `.vec`, and `.cpp` files and keeps changes consistent across all of them.
+The V93K RAG Assistant is a local AI knowledge base for semiconductor test program development on the Advantest V93000 platform. It holds and actively cross-references a broad range of technical information — test program files, device specifications, functional descriptions, DFT methodologies, wafer sort best practices, and accumulated engineering know-how from previous projects in the same device family.
+
+Unlike a simple document search, the assistant understands how information connects across files. It knows that a test suite in the testflow references a levelset, a timingset, a pin group, a spec limit, a C++ test method class, and a bin assignment — and when you ask a question or request a change, it reasons across all of those dependencies simultaneously.
+
+**What the knowledge base carries:**
+
+- **Test program files** — complete interconnected set: `.tf` testflow, `.lim` limit table, `.spec` named limits, `.pin` pin groups and channel map, `.lvl` voltage corners, `.tim` timing sets, `.vec` ASCII patterns, and `.cpp` C++ test method implementations
+- **Device specification** — DUT electrical characteristics, register maps, operating modes, self-test behavior, and interface protocols
+- **DFT knowledge** — scan chain structure, ATPG pattern strategy, IDDQ methodology, continuity approach, and structural vs functional test coverage decisions
+- **Wafer sort best practices** — bin assignment strategy, contact verification flow, on-fail logic, site parallelism, and yield-aware test ordering
+- **Family knowledge** — best practices developed across previous devices in the same product family, reusable test method patterns, and known failure modes that inform limit setting
+
+This accumulated knowledge allows the assistant to do more than answer questions. It can generate new tests consistent with the existing program structure, explain why a test was designed a certain way, flag cross-file inconsistencies, and apply lessons from one project to the next as additional device knowledge is added to the database.
+
+**Current example:** a 3-axis SPI accelerometer — complete test program and device knowledge base including testflow, all configuration files, C++ test methods covering continuity through MEMS self-test, and supporting documentation. All example materials were sourced from publicly available references.
 
 **Example queries:**
 
 ```
-"What does ts_continuity do and what are its limits?"
-"Add a new self-test for the X axis similar to ts_selftest_z"
 "Review ts_scan_full for cross-file issues"
-"Show me everything about the IDDQ test"
 "What levelset does ts_idd_active use and what are the VDD voltages?"
+"Generate a new IDD test for standby mode using the same pattern as ts_idd_active"
+"What DFT approach does this program use for structural coverage?"
+"Look at the SPI max frequency test — I need to create a new test using the same method,
+ writing calibration data to registers at 1.05V supply and 1MHz SPI clock.
+ Present all required changes in every affected file before applying any updates."
+"We need a new levelset at 1.05V for low-voltage calibration write testing —
+ show me what changes are needed in .lvl, .tim, .tf, .lim, and .spec
+ before I approve anything."
 ```
+
+The last two examples demonstrate the assistant's core workflow for new test creation — it surfaces all cross-file dependencies and shows exact changes first, waiting for approval before committing anything. This prevents inconsistent updates where a test exists in the testflow but its spec, bin, or levelset definitions are missing.
 
 ---
 
@@ -166,6 +187,7 @@ If you modify files in `v93k_dummy/`, delete the ChromaDB folder and re-run inge
 ```bash
 rm -rf chroma_db_v93k/
 python3 WERAG_INGEST.py ./v93k_dummy/
+python3 WEBRAG_simple.py
 ```
 
 ---
@@ -198,27 +220,40 @@ The context warning `n_ctx_seq (16384) < n_ctx_train (262144)` is normal — the
 
 ---
 
-## Step 3 — Access the Web Interface
+## Step 3 — Open the Assistant in Your Browser
 
-Open a browser on any machine on your network:
+On any machine on your network open a browser and go to:
 
 ```
 http://ai.local:8000
 ```
 
-or use the server IP directly:
+The V93K RAG Assistant chat interface loads automatically.
+
+**Using the assistant:**
+
+- Type your question in the input box at the bottom
+- Press **Enter** to send
+- The reply streams in live — token by token as the model generates it
+- Press **Clear** to reset the conversation and start fresh
+
+**If `ai.local` does not resolve**, use the server IP address directly:
 
 ```
 http://10.0.0.X:8000
 ```
 
-The chat UI loads. Type your question and press Enter.
+Replace `10.0.0.X` with the actual IP of the machine running `WEBRAG_simple.py`. Find it with:
+
+```bash
+ip addr | grep "inet " | grep -v 127
+```
 
 ---
 
 ## How It Works
 
-Every query goes through three stages before the model generates a reply:
+Every query goes through five stages before the reply appears:
 
 ```
 1. USER QUERY
@@ -246,30 +281,6 @@ The RAG step means the model only sees the most relevant chunks from your files 
 
 ---
 
-## API Endpoints
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/` | GET | Serves the chat UI HTML |
-| `/stream` | POST | Sends a message, streams token reply |
-| `/clear` | POST | Clears conversation history for a session |
-
-**Example curl:**
-
-```bash
-# send a question
-curl -X POST http://ai.local:8000/stream \
-  -H "Content-Type: application/json" \
-  -d '{"session_id": "alex", "message": "what does ts_continuity do?"}'
-
-# clear history
-curl -X POST http://ai.local:8000/clear \
-  -H "Content-Type: application/json" \
-  -d '{"session_id": "alex"}'
-```
-
----
-
 ## Configuration
 
 Key settings at the top of `WEBRAG_simple.py`:
@@ -277,7 +288,7 @@ Key settings at the top of `WEBRAG_simple.py`:
 ```python
 MODEL_PATH      = Path.home() / "hugging_face_rag/models/..."  # path to GGUF model
 CONTEXT_LEN     = 16384    # token window — reduce if running out of VRAM
-MAX_TOKENS      = 4096     # max tokens per reply — reduce if model hangs
+MAX_TOKENS      = 4096     # max tokens per reply
 N_GPU_LAYERS    = -1       # -1 = all layers on GPU, 0 = CPU only
 CHROMA_PATH     = "./chroma_db_v93k"     # RAG database folder
 COLLECTION_NAME = "v93k_test_programs"   # ChromaDB collection name
@@ -312,32 +323,11 @@ Any file type in the supported list is picked up automatically — no configurat
 
 ## Troubleshooting
 
-**Server won't start — VRAM error:**
-Reduce `N_GPU_LAYERS` to offload some layers to RAM:
-```python
-N_GPU_LAYERS = 20   # partial GPU offload
-```
-
-**Model hangs mid-reply:**
-Reduce `MAX_TOKENS`:
-```python
-MAX_TOKENS = 1024
-```
-
-**RAG returns wrong results:**
-Re-ingest with smaller chunks:
-```python
-CHUNK_SIZE = 128
-```
-
 **`Failed to fetch` in browser:**
-Server not running or wrong IP. Test with:
-```bash
-curl http://ai.local:8000/
-```
+Server not running or wrong IP. Check the server terminal is showing `Uvicorn running on http://0.0.0.0:8000` and try the IP address directly instead of `ai.local`.
 
 **ChromaDB collection empty (0 chunks):**
-Ingestion hasn't been run yet or pointed at wrong folder. Run:
+Ingestion has not been run yet or was pointed at the wrong folder. Run:
 ```bash
 python3 WERAG_INGEST.py ./v93k_dummy/
 ```
